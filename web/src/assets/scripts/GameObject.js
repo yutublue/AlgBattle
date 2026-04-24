@@ -44,7 +44,7 @@ const step = timestamp => {//timestamp是当前执行的时间
             obj.update();
         }
     }
-
+    last_timestamp = timestamp;
     requestAnimationFrame(step);
 }
 
