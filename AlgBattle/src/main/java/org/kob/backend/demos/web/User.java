@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.kob.algbattle.demos.web;
+package org.kob.backend.demos.web;
 
 /**
  * @author <a href="mailto:chenxilzx1@gmail.com">theonefx</a>

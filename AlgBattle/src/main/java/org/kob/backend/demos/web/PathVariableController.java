@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.kob.algbattle.demos.web;
+package org.kob.backend.demos.web;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;

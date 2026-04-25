@@ -1,4 +1,4 @@
-package org.kob.algbattle.config;
+package org.kob.backend.config;
 
 import org.springframework.context.annotation.Configuration;
 
