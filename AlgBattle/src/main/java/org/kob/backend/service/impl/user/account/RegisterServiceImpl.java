@@ -67,7 +67,7 @@ public class RegisterServiceImpl implements RegisterService {
         User user = new User(null, username, encodePassword, null, photo);
         userMapper.insert(user);
 
-        map.put("error_message", "register_success");
+        map.put("error_message", "success");
         return map;
 
     }

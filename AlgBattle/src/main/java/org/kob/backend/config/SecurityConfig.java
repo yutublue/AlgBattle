@@ -37,8 +37,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)//设置无状态会话
                 .and()
                 .authorizeRequests()
-                .antMatchers("/user/account/token/", "/user/account/register/",
-                        "/user/account/info/").permitAll()
+                .antMatchers("/user/account/token/", "/user/account/register/").permitAll()
                 .antMatchers(HttpMethod.OPTIONS).permitAll()
                 .anyRequest().authenticated();//如果被拒绝会返回401
 
