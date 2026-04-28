@@ -16,6 +16,7 @@ export default ({
             state.id = user.id;
             state.username = user.username;
             state.photo = user.photo;
+            // if (user.token != null) state.token = user.token;
             state.token = user.token;
             state.is_login = user.is_login;
         },
