@@ -128,7 +128,7 @@
 import { ref, reactive } from "vue";
 import $ from "jquery";
 import { Modal } from 'bootstrap/dist/js/bootstrap';
-// import { useStore } from "vuex";
+import { useStore } from "vuex";
 import { VAceEditor } from 'vue3-ace-editor';
 import 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-c_cpp';
@@ -141,9 +141,9 @@ export default {
 
   setup() {
 
-    // const store = useStore();
+    const store = useStore();
     let bots = ref([]);
-    const jwt_token = localStorage.getItem("jwt_token");
+    
 
     const botadd = reactive({
       title: "",
@@ -157,7 +157,7 @@ export default {
         url: "http://127.0.0.1:3000/user/bot/getlist/",
         type: "get",
         headers: {
-          Authorization: "Bearer " + jwt_token,
+          Authorization: "Bearer " + store.state.user.token,
         },
         success(resp) {
           bots.value = resp;
@@ -178,7 +178,7 @@ export default {
           content: botadd.content
         },
         headers: {
-          Authorization: "Bearer " + jwt_token,
+          Authorization: "Bearer " + store.state.user.token,
         },
         success(resp) {
           if (resp.error_message === "success") {
@@ -206,7 +206,7 @@ export default {
           content: bot.content
         },
         headers: {
-          Authorization: "Bearer " + jwt_token,
+          Authorization: "Bearer " + store.state.user.token,
         },
         success(resp) {
           if (resp.error_message === "success") {
@@ -227,7 +227,7 @@ export default {
           bot_id: bot.id,
         },
         headers: {
-          Authorization: "Bearer " + jwt_token,
+          Authorization: "Bearer " + store.state.user.token,
         },
         success(resp) {
           if (resp.error_message === "success") {

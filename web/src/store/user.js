@@ -1,6 +1,6 @@
 import $ from 'jquery'
 
-export default ({
+export default {
     state: {
         id: "",
         username: "",
@@ -16,8 +16,6 @@ export default ({
             state.id = user.id;
             state.username = user.username;
             state.photo = user.photo;
-            // if (user.token != null) state.token = user.token;
-            state.token = user.token;
             state.is_login = user.is_login;
         },
         updateToken(state, token) {
@@ -37,7 +35,7 @@ export default ({
     actions: {
         login(context, data) {
             $.ajax({
-                url: "http://localhost:3000/user/account/token/",
+                url: "http://127.0.0.1:3000/user/account/token/",
                 type: "POST",
                 data: {
                     username: data.username,
@@ -46,31 +44,7 @@ export default ({
                 success(resp) {
                     if (resp.error_message === "success") {
                         localStorage.setItem("jwt_token", resp.token);
-                        context.commit('updateToken', resp.token);
-                        data.success(resp);
-                    } else {
-                        data.error(resp);
-                    }
-                },
-                error(resp) {
-                    console.log(resp)
-                }
-            });
-        },
-
-        getinfo(context, data) {
-            $.ajax({
-                url: "http://localhost:3000/user/account/info/",
-                type: "GET",
-                headers: {
-                    Authorization: "Bearer " + context.state.token,
-                },
-                success(resp) {
-                    if (resp.error_message === "success") {
-                        context.commit('updateUser', {
-                            ...resp,
-                            is_login: true,
-                        });
+                        context.commit("updateToken", resp.token);
                         data.success(resp);
                     } else {
                         data.error(resp);
@@ -82,11 +56,35 @@ export default ({
             });
         },
 
+        getinfo(context, data) {
+            $.ajax({
+                url: "http://127.0.0.1:3000/user/account/info/",
+                type: "GET",
+                headers: {
+                    Authorization: "Bearer " + context.state.token,
+                },
+                success(resp) {
+                    if (resp.error_message === "success") {
+                        context.commit("updateUser", {
+                            ...resp,
+                            is_login: true,
+                        });
+                        data.success(resp);
+                    } else {
+                        data.error(resp);
+                    }
+                },
+                error(resp) {
+                    data.error(resp);
+                }
+            })
+        },
+
         logout(context) {
             localStorage.removeItem("jwt_token");
-            context.commit('logout');
+            context.commit("logout");
         }
     },
     modules: {
     }
-})
+}

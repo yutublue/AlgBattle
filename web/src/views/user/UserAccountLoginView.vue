@@ -12,7 +12,7 @@
                         <input v-model="password" type="password" class="form-control" id="password"
                             placeholder="请输入密码">
                     </div>
-                    <div class="error_message">{{ error_message }}</div>
+                    <div class="error-message">{{ error_message }}</div>
                     <button type="submit" class="btn btn-primary">提交</button>
                 </form>
             </div>
@@ -67,13 +67,13 @@ export default {
                 success() {
                     store.dispatch("getinfo", {
                         success() {
-                            router.push({ name: "home" });
+                            router.push({ name: 'home' });
                             console.log(store.state.user);
                         }
                     })
                 },
-                error(resp) {
-                    console.log(resp);
+                error() {
+                    error_message.value = "用户名或密码错误";
                 }
             })
         }
@@ -99,7 +99,7 @@ button {
     width: 100%
 }
 
-div.error_message {
+div.error-message {
     color: red;
 }
 </style>

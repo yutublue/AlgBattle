@@ -3,11 +3,12 @@ import { Snake } from './Snake.js';
 import { Wall } from './Wall.js';
 
 export class GameMap extends GameObject {
-    constructor(ctx, parent) {//ctx是画布, parent是画布的父元素, 用来动态修改画布的长宽
+    constructor(ctx, parent, store) {//ctx是画布, parent是画布的父元素, 用来动态修改画布的长宽
         super();
 
         this.ctx = ctx;
         this.parent = parent;
+        this.store = store;
         this.L = 0;//L是一个单位的长度, 一个地图的是13×13个单位
 
         this.rows = 13;
@@ -22,70 +23,8 @@ export class GameMap extends GameObject {
         ];
     }
 
-    //判断地图是否连通
-    check_connectivity(g, sx, sy, tx, ty) {//用flood fill算法判断
-        if (sx == tx && sy == ty) {
-            return true;
-        }
-
-        g[sx][sy] = true;
-
-        let dx = [-1, 0, 1, 0], dy = [0, 1, 0, -1];
-        for (let i = 0; i < 4; i++) {
-            let x = sx + dx[i], y = sy + dy[i];
-            if (!g[x][y] && this.check_connectivity(g, x, y, tx, ty)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     create_walls() {
-        const g = [];//一个bool数组, 判断哪里该放墙
-
-        for (let r = 0; r < this.rows; r++) {
-            g[r] = [];
-            for (let c = 0; c < this.cols; c++) {
-                g[r][c] = false;//把地图上每一块都加进bool数组里面， false就是不放墙
-            }
-        }
-
-        //先给地图左右两边加上墙
-        for (let r = 0; r < this.rows; r++) {
-            g[r][0] = true;
-            g[r][this.cols - 1] = true;
-        }
-
-        //再给地图上下两边加上墙
-        for (let c = 0; c < this.cols; c++) {
-            g[0][c] = true;
-            g[this.rows - 1][c] = true;
-        }
-
-        //再给地图内部加上墙
-        for (let i = 0; i < this.innner_walls_count; i++) {
-            for (let j = 0; j < 1000; j++) {
-                let r = parseInt(Math.random() * this.rows);
-                let c = parseInt(Math.random() * this.cols);
-
-                if (g[r][c] || g[this.rows - 1 - r][this.cols - 1 - c]) {
-                    continue;
-                }
-
-                if (r == this.rows - 2 && c == 1 || r == 1 && c == this.cols - 2) {
-                    continue;//不能在出生点即左下角和右上角有墙
-                }
-
-                g[r][c] = g[this.rows - 1 - r][this.cols - 1 - c] = true;
-                break;
-            }
-        }
-
-        const copy_g = JSON.parse(JSON.stringify(g));//创建一个地图副本, 然后在地图副本里面看看是否连通, 防止对实际地图产生影响
-        if (!this.check_connectivity(copy_g, this.rows - 2, 1, 1, this.cols - 2)) {
-            return false;
-        }
+        const g = this.store.state.pk.gamemap;
 
         //bool数组判断完毕之后就把墙加进去
         for (let r = 0; r < this.rows; r++) {
@@ -96,7 +35,6 @@ export class GameMap extends GameObject {
             }
         }
 
-        return true;
     }
 
     add_listening_events() {
@@ -116,11 +54,7 @@ export class GameMap extends GameObject {
     }
 
     start() {
-        for (let i = 0; i < 1000; i++) {
-            if (this.create_walls()) {
-                break;
-            }
-        }
+        this.create_walls();
         this.add_listening_events();
     }
 
