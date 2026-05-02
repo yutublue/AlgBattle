@@ -68,9 +68,6 @@ export class Snake extends GameObject {
             this.snakebodys[i] = JSON.parse(JSON.stringify(this.snakebodys[i - 1]));
         }
         
-        if(!this.gamemap.check_valid(this.next_body)) {
-            this.status = "die";
-        }
     }
 
     update_move() {
