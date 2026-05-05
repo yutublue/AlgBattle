@@ -132,7 +132,9 @@ import { useStore } from "vuex";
 import { VAceEditor } from 'vue3-ace-editor';
 import 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-c_cpp';
+import 'ace-builds/src-noconflict/mode-java';
 import 'ace-builds/src-noconflict/theme-textmate';
+import 'ace-builds/src-noconflict/theme-monokai';
 
 export default {
   components: {
@@ -151,6 +153,28 @@ export default {
       content: "",
       error_message: "",
     })
+
+    const editorInit = (editor) => {
+      // 动态设置主题为 monokai
+      editor.setTheme('ace/theme/clouds');
+      
+      // 默认使用java
+      editor.session.setMode('ace/mode/java');
+      
+      //添加更多编辑器配置
+      editor.setOptions({
+        fontSize: 16,
+        showLineNumbers: true,
+        highlightActiveLine: true,
+        tabSize: 4,
+        useSoftTabs: true,
+        showPrintMargin: false,
+        wrapBehavioursEnabled: true
+      });
+      
+      console.log('编辑器已初始化，使用 monokai 主题和 JAVA 语言模式');
+    };
+
 
     const refresh_bots = () => {
       $.ajax({
@@ -213,7 +237,7 @@ export default {
             Modal.getInstance("#update-bot-modal" + bot.id).hide();
             refresh_bots();
           } else {
-            botadd.error_message = resp.error_message;
+            bot.error_message = resp.error_message;
           }
         }
       })
@@ -243,6 +267,7 @@ export default {
       add_bot,
       update_bot,
       remove_bot,
+      editorInit,
     }
 
   }

@@ -1,4 +1,4 @@
-package org.kob.matchingsystem.config;
+package org.kob.botrunningsystem.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,7 +16,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)//设置无状态会话
                 .and()
                 .authorizeRequests()
-                .antMatchers("/player/add/", "/player/remove/").hasIpAddress("127.0.0.1")
+                .antMatchers("/bot/add/").hasIpAddress("127.0.0.1")
                 .antMatchers(HttpMethod.OPTIONS).permitAll()
                 .anyRequest().authenticated();//如果被拒绝会返回401
     }
