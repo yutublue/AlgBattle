@@ -28,7 +28,7 @@ export default ({
         updateStatus(state, status) {
             state.status = status;
         },
-        updateGamemap(state, gamemap) {
+        updateGame(state, gamemap) {
             state.gamemap = gamemap.map;
             state.a_id = gamemap.a_id;
             state.a_sx = gamemap.a_sx;

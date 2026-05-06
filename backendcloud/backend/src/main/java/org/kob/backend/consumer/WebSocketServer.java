@@ -31,7 +31,7 @@ public class WebSocketServer {
     private User user;
     private Session session = null;
 
-    private static UserMapper usermapper;
+    public static UserMapper usermapper;
     public static RecordMapper recordmapper;
     private static BotMapper  botmapper;
 
