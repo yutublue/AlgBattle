@@ -14,6 +14,7 @@ export default ({
         b_sy: 0,
         gameObject: null,
         loser: "none",//none, all, A, B
+        role: null,//当前玩家在游戏中的角色: "A" 或 "B"
     },
     getters: {
     },
@@ -42,6 +43,9 @@ export default ({
         },
         updateLoser(state, loser) {
             state.loser = loser;
+        },
+        updateRole(state, role) {
+            state.role = role;
         }
     },
     actions: {

@@ -24,6 +24,7 @@ export default {
 
     store.commit("updateLoser", "none");
     store.commit("updateIsRecord", false);
+    store.commit("updateRole", null);
 
     let socket = null;
     onMounted(() => {
@@ -53,6 +54,7 @@ export default {
           }, 200);
 
           store.commit("updateGame", data.game);
+          store.commit("updateRole", data.role);
         } else if (data.event === "move") {
           console.log(data);
           const game = store.state.pk.gameObject;
@@ -77,6 +79,7 @@ export default {
       socket.onclose = () => {
         console.log("disconnected!");
         store.commit("updateStatus", "matching");
+        store.commit("updateRole", null);
       }
     });
 
