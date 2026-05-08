@@ -87,7 +87,8 @@ export class Snake extends GameObject {
             }
         } else {
 
-            const move_distance = this.speed * this.timedelta / 1000;
+            let move_distance = this.speed * this.timedelta / 1000;
+            if (move_distance > distance) move_distance = distance; // 防越界震荡
             this.snakebodys[0].x += move_distance * dx / distance;
             this.snakebodys[0].y += move_distance * dy / distance;
 

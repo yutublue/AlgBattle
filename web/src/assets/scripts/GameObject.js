@@ -33,18 +33,28 @@ export class GameObject {
 }
 
 let last_timestamp;//上一次执行的时间
+const MAX_TIMEDELTA = 200; // 帧间隔上限，5格/s × 200ms = 1格，不会越界震荡
 
-const step = timestamp => {//timestamp是当前执行的时间
+const step = timestamp => {
     for (let obj of GAME_OBJECTS) {
         if (!obj.has_called_start) {
             obj.has_called_start = true;
             obj.start();
         } else {
-            obj.timedelta = timestamp - last_timestamp;
+            let dt = timestamp - last_timestamp;
+            if (dt > MAX_TIMEDELTA) dt = MAX_TIMEDELTA;
+            obj.timedelta = dt;
             obj.update();
         }
     }
-    last_timestamp = timestamp;
+    // 只推进被消耗的时间，超出部分留给后续帧追赶
+    if (last_timestamp != null) {
+        let consumed = timestamp - last_timestamp;
+        if (consumed > MAX_TIMEDELTA) consumed = MAX_TIMEDELTA;
+        last_timestamp += consumed;
+    } else {
+        last_timestamp = timestamp;
+    }
     requestAnimationFrame(step);
 }
 

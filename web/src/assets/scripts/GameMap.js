@@ -21,6 +21,8 @@ export class GameMap extends GameObject {
             new Snake({ id: 0, color: "#4876EC", r: this.rows - 2, c: 1 }, this),
             new Snake({ id: 1, color: "#F94848", r: 1, c: this.cols - 2 }, this)
         ];
+
+        this.moveQueue = []; // 方向消息队列，解决切标签页后消息覆盖的问题
     }
 
     create_walls() {
@@ -136,7 +138,17 @@ export class GameMap extends GameObject {
     update() {
         this.update_size();
 
+        // 先取队列头部方向设置到蛇身上, 再走原来的 ready → next_step 流程
+        if (this.moveQueue.length > 0) {
+            const move = this.moveQueue[0];
+            this.snakes[0].set_direction(move.a_direction);
+            this.snakes[1].set_direction(move.b_direction);
+        }
+
         if (this.check_ready()) {
+            if (this.moveQueue.length > 0) {
+                this.moveQueue.shift(); // 消费队列头部
+            }
             this.next_step();
         }
         this.render();
