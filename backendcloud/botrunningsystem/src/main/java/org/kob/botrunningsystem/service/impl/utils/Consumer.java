@@ -2,6 +2,7 @@ package org.kob.botrunningsystem.service.impl.utils;
 
 import org.joor.Reflect;
 import org.kob.botrunningsystem.utils.BotInterface;
+import org.kob.botrunningsystem.utils.CodeSecurityScanner;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -11,54 +12,64 @@ import org.springframework.web.client.RestTemplate;
 import java.util.UUID;
 
 @Component
-public class Consumer extends Thread {
-    private Bot bot;
-    private static RestTemplate  restTemplate;
-    private final static String receiveBotMoveUrl = "http://127.0.0.1:3000/pk/receive/bot/move/";
+public class Consumer {
+    private static RestTemplate restTemplate;
+    private static final String receiveBotMoveUrl = "http://127.0.0.1:3000/pk/receive/bot/move/";
 
     @Autowired
     public void setRestTemplate(RestTemplate restTemplate) {
         Consumer.restTemplate = restTemplate;
     }
 
-    public void startTimeout(long timeout, Bot bot) {
-        this.bot = bot;
-        this.start();
+    public static void consume(Integer userId, String botCode, String input) {
+        // 1. 安全扫描，拦截危险代码
+        String violation = CodeSecurityScanner.scan(botCode);
+        if (violation != null) {
+            System.out.println("[Security] 拦截用户 " + userId + " 的Bot: " + violation);
+            sendMove(userId, 0);
+            return;
+        }
 
+        // 2. 在新线程中编译执行，join 控制超时
+        Thread botThread = new Thread(() -> {
+            try {
+                UUID uuid = UUID.randomUUID();
+                String uid = uuid.toString().substring(0, 8);
+
+                BotInterface bi = Reflect.compile(
+                        "org.kob.botrunningsystem.utils.Bot" + uid,
+                        addUid(botCode, uid)
+                ).create().get();
+
+                Integer direction = bi.nextMove(input);
+                sendMove(userId, direction);
+            } catch (Exception e) {
+                System.out.println("[BotError] 用户 " + userId + " 的Bot执行异常: " + e.getMessage());
+                sendMove(userId, 0);
+            }
+        });
+
+        botThread.start();
         try {
-            //控制当前线程的执行时间, 最多等待timeout秒
-            //如果线程提前完成, join即这个等待就会提前结束
-            this.join(timeout);
+            botThread.join(2000);
+            if (botThread.isAlive()) {
+                System.out.println("[Timeout] 用户 " + userId + " 的Bot超时(>2s)，兜底判负");
+                sendMove(userId, 0);
+            }
         } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            this.interrupt();//中断当前线程
+            Thread.currentThread().interrupt();
         }
     }
 
-    private String addUid(String code, String uid) {//在用户上传的代码中的Bot类名后面添加uid
+    private static String addUid(String code, String uid) {
         int k = code.indexOf(" implements org.kob.botrunningsystem.utils.BotInterface");
         return code.substring(0, k) + uid + code.substring(k);
     }
 
-    @Override
-    public void run() {
-        UUID uuid = UUID.randomUUID();
-        String uid = uuid.toString().substring(0, 8);
-
-        BotInterface botinterface = Reflect.compile(//Reflect这个类可以动态地帮我们编译代码
-                        "org.kob.botrunningsystem.utils.Bot" + uid,
-                addUid(bot.getBotCode(), uid)
-        ).create().get();
-
-        Integer direction = botinterface.nextMove(bot.getInput());
-
-        System.out.println("move-direction: " + bot.getUserId() + " " + direction);
-
+    private static void sendMove(Integer userId, Integer direction) {
         MultiValueMap<String, String> data = new LinkedMultiValueMap<>();
-        data.add("user_id", bot.getUserId().toString());
+        data.add("user_id", userId.toString());
         data.add("direction", direction.toString());
-
         restTemplate.postForLocation(receiveBotMoveUrl, data, String.class);
     }
 }

@@ -40,7 +40,6 @@ export class GameMap extends GameObject {
     add_listening_events() {
         console.log(this.store.state.record);
 
-
         if (this.store.state.record.is_record) {
             let k = 0;
             const a_steps = this.store.state.record.a_steps;

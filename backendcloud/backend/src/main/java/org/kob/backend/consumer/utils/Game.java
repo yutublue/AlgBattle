@@ -223,7 +223,7 @@ public class Game extends Thread {
 
     private boolean check_valid(List<Cell> cellsA, List<Cell> cellsB) {
         int n = cellsA.size();
-        Cell cell = cellsA.get(n - 1);//吧cellsA的最后一位即蛇头取出来
+        Cell cell = cellsA.get(n - 1);//把cellsA的最后一位即蛇头取出来
         if(g[cell.x][cell.y] == 1) return false;
 
         for(int i = 0; i < n - 1; i++) {//判断下一步会不会碰到自己的身体
