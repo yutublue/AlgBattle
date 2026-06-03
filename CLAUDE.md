@@ -54,7 +54,7 @@ botrunningsystem:3002 ◄──────────┘
 |------|---------|------|
 | 3000 | `backend` | Main server: WebSocket endpoint, game engine, REST APIs, JWT auth |
 | 3001 | `matchingsystem` | Matching pool (background thread, 1s polling) |
-| 3002 | `botrunningsystem` | Bot code sandbox (dynamic Java compilation via joor) |
+| 3002 | `botrunningsystem` | Bot code sandbox: security scan → joor compile → thread pool execute → timeout fallback |
 
 ### Request Flow: Matching → Game Start → Game Loop
 
@@ -92,7 +92,12 @@ botrunningsystem:3002 ◄──────────┘
 - JWT-based stateless auth (jjwt, `JwtAuthenticationTokenFilter` before `UsernamePasswordAuthenticationFilter`)
 - Inter-service endpoints (`/pk/start/game/`, `/pk/receive/bot/move/`) restricted to `127.0.0.1` only
 - WebSocket path `/websocket/**` excluded from Spring Security filter chain
-- Bot execution timeout: 2000ms (`thread.join(2000)` + interrupt)
+- **Bot sandbox multi-layer security**:
+  1. `CodeSecurityScanner` — static regex scan rejects code with dangerous API calls (System.exit, Runtime.exec, ProcessBuilder, File I/O, networking, reflection, ClassLoader, thread creation) before compilation
+  2. Thread pool (4 threads, `ExecutorService`) + `thread.join(2000)` timeout detection per bot
+  3. Fallback direction (0) sent on timeout/exception/security-reject to prevent game hang
+  4. Active-user dedup: `BotPool` skips duplicate submissions from same user to prevent thread pool exhaustion
+- Known limitation: thread-level isolation only (same JVM), `interrupt()` cannot stop infinite loops (zombie threads), static scan can be bypassed by advanced techniques
 
 ### Key Inter-Service Endpoints (localhost only)
 
@@ -185,8 +190,9 @@ Three tables in MySQL `algbattle`, managed by MyBatis-Plus (no SQL scripts).
 - `backendcloud/matchingsystem/.../impl/utils/Player.java` — Match pool player model
 
 ### Backend — Bot Sandbox
-- `backendcloud/botrunningsystem/.../impl/utils/BotPool.java` — Task queue with ReentrantLock + Condition
-- `backendcloud/botrunningsystem/.../impl/utils/Consumer.java` — jOOR dynamic compile + execute + 2000ms timeout
+- `backendcloud/botrunningsystem/.../impl/utils/BotPool.java` — Thread pool scheduler (ExecutorService 4 threads) + active-user dedup
+- `backendcloud/botrunningsystem/.../impl/utils/Consumer.java` — Security scan → jOOR compile → execute → timeout fallback
+- `backendcloud/botrunningsystem/.../utils/CodeSecurityScanner.java` — Static regex scanner: blocks 10 categories of dangerous API calls
 - `backendcloud/botrunningsystem/.../utils/BotInterface.java` — `Integer nextMove(String input)` interface
 - `backendcloud/botrunningsystem/.../utils/Bot.java` — Default greedy bot implementation
 
@@ -196,11 +202,13 @@ Three tables in MySQL `algbattle`, managed by MyBatis-Plus (no SQL scripts).
 - `backendcloud/backend/.../utils/JwtUtil.java` — JWT create/parse
 
 ### Frontend — Game Rendering
-- `web/src/assets/scripts/GameMap.js` — Canvas game engine, snakes[], walls, requestAnimationFrame loop
-- `web/src/assets/scripts/Snake.js` — Snake entity: render, move interpolation, eye direction, growth
-- `web/src/assets/scripts/GameObject.js` — Base class with timedelta-based update loop
+- `web/src/assets/scripts/GameMap.js` — Canvas game engine, snakes[], walls, `moveQueue` for direction messages, rAF loop
+- `web/src/assets/scripts/Snake.js` — Snake entity: render, move interpolation (with overshoot guard), eye direction, growth
+- `web/src/assets/scripts/GameObject.js` — Base class: timedelta-based update loop, **200ms frame cap** to prevent tab-switch desync
 - `web/src/assets/scripts/Wall.js` — Wall rendering
 - `web/src/assets/scripts/SnakeBody.js` — Single body segment model
+
+**Frontend sync mechanism**: Backend sends `move` events via WebSocket → `PKIndexView` pushes to `GameMap.moveQueue` → rAF loop peeks queue, sets direction on snakes, then `check_ready() → next_step()`. This queue prevents direction overwrites when the browser tab is hidden. Frame `timedelta` is capped at 200ms (snake speed 5 cells/s × 200ms = 1 cell max per frame) to prevent wall-clipping on tab restore.
 
 ### Frontend — Vue Components & Store
 - `web/src/views/pk/PKIndexView.vue` — Main PK page: WebSocket setup, event routing
@@ -215,15 +223,18 @@ Three tables in MySQL `algbattle`, managed by MyBatis-Plus (no SQL scripts).
 ## Project Context
 
 This is a **graduation thesis project** (2025, 郑州轻工业大学). The thesis itself lives in `thesis/` directory:
-- `thesis/宁艳焱毕业设计(论文).docx` — the main thesis document (currently being revised)
-- `thesis/数据库表设计图.html` — database table design diagrams for the thesis
-- `thesis_rewrite/图表.html` — 12 technical diagrams (architecture, ER, flowcharts, use cases)
+- `thesis/宁艳焱毕业设计(论文).docx` — the main thesis document
+- `thesis/图表.html` — 12 Mermaid technical diagrams (architecture, ER, flowcharts, use cases)
+- `thesis/数据库表设计图.html` — database table design diagrams
+- `thesis/test_tables/` — 6 rendered test case table images (PNG, 200dpi)
+- `thesis/generate_test_images.py` — Python script to regenerate test table images via matplotlib
 
 ## Development Notes
 
 - **Everything runs locally**: IDEA launches 3 Spring Boot microservices, Vue CLI (`npm run serve`) serves frontend, MySQL on localhost:3306. No remote servers involved.
 - **User's primary language is C++**; Java chosen for this project due to better web ecosystem (Spring Boot, MyBatis-Plus).
-- **Bot code runs in same JVM** — thread-level isolation only, no Docker/process sandbox (noted as limitation in thesis).
+- **Bot code runs in same JVM** — thread-level isolation only, no Docker/process sandbox. Static regex scan catches common dangerous APIs; zombie threads from infinite loops are a known limitation.
 - **Role indicator feature**: Players see their snake color and position (e.g. "你控制蓝色蛇 (左下角)") above the game map on match start. The `role` field ("A"/"B") is sent from WebSocketServer and stored in Vuex `pk.role`.
 - **Replay uses stored step strings**: `a_steps` and `b_steps` are concatenated direction digits, parsed at 300ms intervals for auto-playback.
 - **Pagination**: MyBatis-Plus pagination plugin configured; record list and ranklist both paginated (ranklist: 3 per page).
+- **BotRunningSystem lifecycle**: `BotPool` no longer extends Thread — uses internal `ExecutorService`. No explicit `start()` call needed.

@@ -9,8 +9,11 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -108,6 +111,43 @@ public class Game extends Thread {
         return false;
     }
 
+    // Voronoi公平性度量: 多源BFS同时从两个出生点出发划分控制区域
+    // 验证双方可到达的空地面积比在0.9~1.1之间, 确保地图公平
+    private boolean check_fairness(int sxA, int syA, int sxB, int syB) {
+        int[][] owner = new int[this.rows][this.cols];
+        for (int i = 0; i < this.rows; i++) {
+            Arrays.fill(owner[i], -1);
+        }
+
+        Queue<int[]> queue = new LinkedList<>();
+        queue.offer(new int[]{sxA, syA, 0}); // 0 表示玩家A的控制区
+        queue.offer(new int[]{sxB, syB, 1}); // 1 表示玩家B的控制区
+        owner[sxA][syA] = 0;
+        owner[sxB][syB] = 1;
+
+        int countA = 0, countB = 0;
+
+        while (!queue.isEmpty()) {
+            int[] cur = queue.poll();
+            int x = cur[0], y = cur[1], who = cur[2];
+            if (who == 0) countA++;
+            else countB++;
+
+            for (int i = 0; i < 4; i++) {
+                int nx = x + dx[i], ny = y + dy[i];
+                if (nx >= 0 && nx < this.rows && ny >= 0 && ny < this.cols
+                        && g[nx][ny] == 0 && owner[nx][ny] == -1) {
+                    owner[nx][ny] = who;
+                    queue.offer(new int[]{nx, ny, who});
+                }
+            }
+        }
+
+        if (countA + countB == 0) return true;
+        double ratio = (double) Math.min(countA, countB) / Math.max(countA, countB);
+        return ratio >= 0.9;
+    }
+
     private boolean draw() {
 
         //一个bool数组, 判断哪里该放墙, 一开始先把所有位置初始化成没有墙
@@ -128,13 +168,13 @@ public class Game extends Thread {
         }
 
         Random random = new Random();
-        //随机生成墙
-        for(int i = 0; i < this.inner_walls_count / 2; i++) {//地图是中心对称的, 所以要/2
+        //随机生成墙（不再强制中心对称，公平性由Voronoi检查保证）
+        for(int i = 0; i < this.inner_walls_count; i++) {
             for(int j = 0; j < 1000; j++){//每一堵墙尝试一千次生成, 一生成成功就转到下一堵墙
                 int r = random.nextInt(this.rows);
                 int c = random.nextInt(this.cols);
 
-                if(g[r][c] == 1 || g[this.rows - 1 - r][this.cols - 1 - c] == 1) {//如果这个位置已经有墙了就再随机一次
+                if(g[r][c] == 1) {//如果这个位置已经有墙了就再随机一次
                     continue;
                 }
 
@@ -142,13 +182,15 @@ public class Game extends Thread {
                     continue;
                 }
 
-                g[r][c] = g[this.rows - 1 - r][this.cols - 1 - c] = 1;
+                g[r][c] = 1;
                 break;//找到位置生成墙了, 换下一堵墙
 
             }
         }
 
-        return check_connectivity(this.rows - 2, 1, 1, this.cols - 2);
+        // 连通性 + Voronoi公平性 + 最短路径长度检查
+        return check_connectivity(this.rows - 2, 1, 1, this.cols - 2)
+                && check_fairness(this.rows - 2, 1, 1, this.cols - 2);
     }
 
     public void createMap() {

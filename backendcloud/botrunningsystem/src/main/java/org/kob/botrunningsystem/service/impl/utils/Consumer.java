@@ -9,6 +9,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.UUID;
 
 @Component
@@ -30,7 +32,7 @@ public class Consumer {
             return;
         }
 
-        // 2. 在新线程中编译执行，join 控制超时
+        // 2. 在新线程中编译执行，CPU时间计量替代墙上时钟超时
         Thread botThread = new Thread(() -> {
             try {
                 UUID uuid = UUID.randomUUID();
@@ -50,14 +52,52 @@ public class Consumer {
         });
 
         botThread.start();
-        try {
-            botThread.join(2000);
-            if (botThread.isAlive()) {
-                System.out.println("[Timeout] 用户 " + userId + " 的Bot超时(>2s)，兜底判负");
-                sendMove(userId, 0);
+
+        ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+        long threadId = botThread.getId();
+        // 等待线程调度, 确保CPU时间可测（未启动的线程 getThreadCpuTime 返回 -1）
+        try { Thread.sleep(10); } catch (InterruptedException ignored) {}
+
+        long startCpuTime = threadMXBean.getThreadCpuTime(threadId);
+        // 若JVM不支持CPU时间测量(返回-1), 降级为墙上时钟模式
+        if (startCpuTime == -1) {
+            System.out.println("[Warning] JVM不支持CPU时间测量, 降级为墙上时钟超时");
+            try {
+                botThread.join(2000);
+                if (botThread.isAlive()) {
+                    System.out.println("[Timeout] 用户 " + userId + " 的Bot超时(>2s wall)，兜底判负");
+                    sendMove(userId, 0);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            return;
+        }
+
+        final long cpuLimitNs = 1_000_000_000L;  // 1秒CPU时间上限
+        final long wallDeadline = System.currentTimeMillis() + 5000; // 5秒墙上时钟兜底
+
+        while (botThread.isAlive() && System.currentTimeMillis() < wallDeadline) {
+            try {
+                Thread.sleep(50); // 每50ms轮询一次
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+
+            long cpuUsed = threadMXBean.getThreadCpuTime(threadId) - startCpuTime;
+            if (cpuUsed > cpuLimitNs) {
+                System.out.println("[Timeout] 用户 " + userId + " 的Bot CPU时间超限("
+                        + (cpuUsed / 1_000_000) + "ms > " + (cpuLimitNs / 1_000_000) + "ms)，兜底判负");
+                sendMove(userId, 0);
+                return;
+            }
+        }
+
+        // 墙上时钟兜底（线程可能被IO/等待阻塞）
+        if (botThread.isAlive()) {
+            System.out.println("[Timeout] 用户 " + userId + " 的Bot墙上时钟超时(>5s)，兜底判负");
+            sendMove(userId, 0);
         }
     }
 
